@@ -8,7 +8,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Algebra 1 Tutorial: How to Complete a Prove It</title>
+    <title>Math Tutorial: How to Complete a Prove It</title>
 
     <style>
         :root {
@@ -611,7 +611,12 @@
 <body>
     <main class="app">
         <header class="topbar">
-            <p class="brand">Algebra 1 Student Tutorial</p>
+            <p
+                class="brand"
+                id="courseHeader"
+            >
+                Math Student Tutorial
+            </p>
 
             <p
                 class="slide-counter"
@@ -722,7 +727,7 @@
 
                                 <p>
                                     Follow the directions about notes, calculators,
-                                    Desmos, and other tools.
+                                    and other allowed tools.
                                 </p>
                             </div>
 
@@ -909,9 +914,17 @@
                     <h2>Show what you know clearly and completely.</h2>
 
                     <div class="closing-grid">
-                        <div class="closing-step">Read Everything First</div>
-                        <div class="closing-step">Explain Your Reasoning</div>
-                        <div class="closing-step">Check Before Submitting</div>
+                        <div class="closing-step">
+                            Read Everything First
+                        </div>
+
+                        <div class="closing-step">
+                            Explain Your Reasoning
+                        </div>
+
+                        <div class="closing-step">
+                            Check Before Submitting
+                        </div>
                     </div>
 
                     <p class="lead" style="margin-top: 34px;">
@@ -1007,17 +1020,63 @@
     <script>
         "use strict";
 
+        /*
+         * COURSE SELECTION
+         *
+         * Supported URLs:
+         * index.html?course=algebra1
+         * index.html?course=geometry
+         * index.html?course=algebra2
+         *
+         * If no supported course is provided, the page defaults to Algebra 1.
+         */
+        const courseOptions = {
+            algebra1: {
+                displayName: "Algebra 1",
+                spokenName: "Algebra 1"
+            },
+
+            geometry: {
+                displayName: "Geometry",
+                spokenName: "Geometry"
+            },
+
+            algebra2: {
+                displayName: "Algebra 2",
+                spokenName: "Algebra 2"
+            }
+        };
+
+        const urlParameters =
+            new URLSearchParams(window.location.search);
+
+        const requestedCourse =
+            urlParameters.get("course")?.trim().toLowerCase();
+
+        const selectedCourse =
+            courseOptions[requestedCourse] ||
+            courseOptions.algebra1;
+
+        const courseHeader =
+            document.getElementById("courseHeader");
+
+        courseHeader.textContent =
+            `${selectedCourse.displayName} Student Tutorial`;
+
+        document.title =
+            `${selectedCourse.displayName} Tutorial: How to Complete a Prove It`;
+
         const tutorialSlides = [
             {
                 narration:
-                    "Welcome to this Algebra 1 student tutorial. " +
+                    `Welcome to this ${selectedCourse.spokenName} student tutorial. ` +
                     "In this video, you will learn how to successfully complete a Prove It assignment."
             },
             {
                 narration:
-                    "The Prove It assignment is your opportunity to demonstrate mastery of the week’s learning targets. " +
-                    "Your work should show that you understand the skill, can explain your reasoning, " +
-                    "and can complete the required tasks independently."
+                    "The Prove It assignment is your opportunity to demonstrate mastery " +
+                    "of the week’s learning targets. Your work should show that you understand " +
+                    "the skill, can explain your reasoning, and can complete the required tasks independently."
             },
             {
                 narration:
@@ -1028,7 +1087,8 @@
             {
                 narration:
                     "Follow the submission format listed on your assignment. " +
-                    "Your Prove It will require a file upload submission after your completion of the required tasks."
+                    "Your Prove It will require a file upload submission after your completion " +
+                    "of the required tasks."
             },
             {
                 narration:
@@ -1101,11 +1161,16 @@
         let activeUtterance = null;
         let selectedVoice = null;
         let voicesLoaded = false;
+        let narrationSession = 0;
 
         const speechSupported =
             "speechSynthesis" in window &&
             "SpeechSynthesisUtterance" in window;
 
+        /*
+         * Students do not see or control the voice selection.
+         * The page automatically chooses the first preferred voice available.
+         */
         const preferredVoiceNames = [
             "Google US English",
             "Microsoft Aria Online (Natural) - English (United States)",
@@ -1231,6 +1296,18 @@
             }
         }
 
+        function stopNarration() {
+            narrationSession += 1;
+
+            if (speechSupported) {
+                window.speechSynthesis.cancel();
+            }
+
+            activeUtterance = null;
+            isPlaying = false;
+            isPaused = false;
+        }
+
         function createUtterance(text) {
             const utterance =
                 new SpeechSynthesisUtterance(text);
@@ -1246,7 +1323,7 @@
             return utterance;
         }
 
-        function speakCurrentSlide() {
+        function speakCurrentSlide(sessionId = narrationSession) {
             if (!speechSupported) {
                 statusText.textContent =
                     "Narration is not supported in this browser.";
@@ -1265,6 +1342,10 @@
             );
 
             activeUtterance.onstart = () => {
+                if (sessionId !== narrationSession) {
+                    return;
+                }
+
                 isPlaying = true;
                 isPaused = false;
 
@@ -1275,6 +1356,10 @@
             };
 
             activeUtterance.onend = () => {
+                if (sessionId !== narrationSession) {
+                    return;
+                }
+
                 activeUtterance = null;
 
                 if (!isPlaying) {
@@ -1290,7 +1375,9 @@
                     showSlide(currentSlide);
 
                     window.setTimeout(() => {
-                        speakCurrentSlide();
+                        if (sessionId === narrationSession) {
+                            speakCurrentSlide(sessionId);
+                        }
                     }, 650);
                 } else {
                     isPlaying = false;
@@ -1304,6 +1391,10 @@
             };
 
             activeUtterance.onerror = (event) => {
+                if (sessionId !== narrationSession) {
+                    return;
+                }
+
                 if (
                     event.error !== "interrupted" &&
                     event.error !== "canceled"
@@ -1313,8 +1404,13 @@
                         event.error
                     );
 
+                    isPlaying = false;
+                    isPaused = false;
+
                     statusText.textContent =
                         "Narration error";
+
+                    updateControls();
                 }
             };
 
@@ -1343,11 +1439,18 @@
                 return;
             }
 
+            narrationSession += 1;
+
+            const sessionId =
+                narrationSession;
+
             isPlaying = true;
+            isPaused = false;
 
             showSlide(currentSlide);
+            updateControls();
 
-            speakCurrentSlide();
+            speakCurrentSlide(sessionId);
         }
 
         function togglePause() {
@@ -1381,24 +1484,23 @@
             index,
             continuePlaying = false
         ) {
-            const wasPlaying =
+            const shouldContinue =
                 continuePlaying && isPlaying;
 
-            if (speechSupported) {
-                window.speechSynthesis.cancel();
-            }
-
-            activeUtterance = null;
-            isPlaying = false;
-            isPaused = false;
-
+            stopNarration();
             showSlide(index);
 
-            if (wasPlaying) {
+            if (shouldContinue) {
+                narrationSession += 1;
+
+                const sessionId =
+                    narrationSession;
+
                 isPlaying = true;
+                isPaused = false;
 
                 window.setTimeout(() => {
-                    speakCurrentSlide();
+                    speakCurrentSlide(sessionId);
                 }, 250);
             } else {
                 statusText.textContent =
@@ -1409,15 +1511,19 @@
         }
 
         function restartTutorial() {
-            if (speechSupported) {
-                window.speechSynthesis.cancel();
-            }
+            stopNarration();
 
             currentSlide = 0;
-            isPlaying = true;
-            isPaused = false;
 
             showSlide(currentSlide);
+
+            narrationSession += 1;
+
+            const sessionId =
+                narrationSession;
+
+            isPlaying = true;
+            isPaused = false;
 
             statusText.textContent =
                 "Playing";
@@ -1425,7 +1531,7 @@
             updateControls();
 
             window.setTimeout(() => {
-                speakCurrentSlide();
+                speakCurrentSlide(sessionId);
             }, 250);
         }
 
@@ -1525,11 +1631,7 @@
 
         window.addEventListener(
             "beforeunload",
-            () => {
-                if (speechSupported) {
-                    window.speechSynthesis.cancel();
-                }
-            }
+            stopNarration
         );
 
         if (speechSupported) {
